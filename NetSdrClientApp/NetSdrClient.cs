@@ -9,6 +9,9 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using static NetSdrClientApp.Messages.NetSdrMessageHelper;
 using static System.Runtime.InteropServices.JavaScript.JSType;
+using NUnit.Framework;
+using Moq;
+using System.Threading.Tasks;
 
 namespace NetSdrClientApp
 {
@@ -335,9 +338,6 @@ namespace NetSdrClientApp
 #if DEBUG
 namespace NetSdrClientApp.UnitTests
 {
-    using NUnit.Framework;
-    using Moq;
-    using System.Threading.Tasks;
     
     [TestFixture]
     public class NetSdrClientBasicTests
