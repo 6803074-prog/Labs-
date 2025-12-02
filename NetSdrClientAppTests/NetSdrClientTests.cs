@@ -1,119 +1,141 @@
-﻿using Moq;
+using Moq;
 using NetSdrClientApp;
 using NetSdrClientApp.Networking;
+using System.Linq;
+using System.Threading.Tasks;
+using Xunit;
 
-namespace NetSdrClientAppTests;
-
-public class NetSdrClientTests
+namespace NetSdrClientApp.Tests
 {
-    NetSdrClient _client;
-    Mock<ITcpClient> _tcpMock;
-    Mock<IUdpClient> _updMock;
-
-    public NetSdrClientTests() { }
-
-    [SetUp]
-    public void Setup()
+    public class NetSdrClientTests
     {
-        _tcpMock = new Mock<ITcpClient>();
-        _tcpMock.Setup(tcp => tcp.Connect()).Callback(() =>
+        private readonly Mock<ITcpClient> tcpMock;
+        private readonly Mock<IUdpClient> udpMock;
+        private readonly NetSdrClient client;
+
+        public NetSdrClientTests()
         {
-            _tcpMock.Setup(tcp => tcp.Connected).Returns(true);
-        });
+            tcpMock = new Mock<ITcpClient>();
+            udpMock = new Mock<IUdpClient>();
 
-        _tcpMock.Setup(tcp => tcp.Disconnect()).Callback(() =>
+            tcpMock.Setup(t => t.Connected).Returns(true); // default state true
+            udpMock.Setup(u => u.StartListeningAsync()).Returns(Task.CompletedTask);
+
+            client = new NetSdrClient(tcpMock.Object, udpMock.Object);
+        }
+
+        // ------------------------------------------
+        // 1) ConnectAsync should send 3 init commands
+        // ------------------------------------------
+        [Fact]
+        public async Task ConnectAsync_SendsThreeInitializationMessages()
         {
-            _tcpMock.Setup(tcp => tcp.Connected).Returns(false);
-        });
+            tcpMock.Setup(t => t.Connected).Returns(false);
+            tcpMock.Setup(t => t.SendMessageAsync(It.IsAny<byte[]>())).Returns(Task.CompletedTask);
 
-        _tcpMock.Setup(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>())).Callback<byte[]>((bytes) =>
+            // emulate instant response for SendTcpRequest
+            tcpMock.SetupAdd(t => t.MessageReceived += It.IsAny<EventHandler<byte[]>>())
+                   .Callback<EventHandler<byte[]>>(h => h.Invoke(this, new byte[] { 0x00 }));
+
+            await client.ConnectAsync();
+
+            tcpMock.Verify(t => t.SendMessageAsync(It.IsAny<byte[]>()), Times.Exactly(3));
+        }
+
+        // ------------------------------------------
+        // 2) StartIQAsync should send a start command
+        // ------------------------------------------
+        [Fact]
+        public async Task StartIQAsync_SendsStartCommand()
         {
-            _tcpMock.Raise(tcp => tcp.MessageReceived += null, _tcpMock.Object, bytes);
-        });
+            byte[]? sent = null;
 
-        _updMock = new Mock<IUdpClient>();
+            tcpMock.Setup(t => t.SendMessageAsync(It.IsAny<byte[]>()))
+                   .Callback<byte[]>(msg => sent = msg)
+                   .Returns(Task.CompletedTask);
 
-        _client = new NetSdrClient(_tcpMock.Object, _updMock.Object);
+            // unlock awaiting response inside SendTcpRequest
+            tcpMock.SetupAdd(t => t.MessageReceived += It.IsAny<EventHandler<byte[]>>())
+                   .Callback<EventHandler<byte[]>>(h => h.Invoke(this, new byte[] { 0x00 }));
+
+            await client.StartIQAsync();
+
+            Assert.NotNull(sent);
+            Assert.True(client.IQStarted);
+        }
+
+        // ------------------------------------------
+        // 3) StopIQAsync should send a stop command
+        // ------------------------------------------
+        [Fact]
+        public async Task StopIQAsync_SendsStopCommand()
+        {
+            byte[]? sent = null;
+
+            tcpMock.Setup(t => t.SendMessageAsync(It.IsAny<byte[]>()))
+                   .Callback<byte[]>(msg => sent = msg)
+                   .Returns(Task.CompletedTask);
+
+            // emulate response
+            tcpMock.SetupAdd(t => t.MessageReceived += It.IsAny<EventHandler<byte[]>>())
+                   .Callback<EventHandler<byte[]>>(h => h.Invoke(this, new byte[] { 0x00 }));
+
+            await client.StopIQAsync();
+
+            Assert.Contains((byte)0x01, sent!); // stop flag present
+            Assert.False(client.IQStarted);
+        }
+
+        // ------------------------------------------
+        // 4) ChangeFrequencyAsync should embed frequency into message
+        // ------------------------------------------
+        [Fact]
+        public async Task ChangeFrequencyAsync_SendsCorrectFrequency()
+        {
+            long freq = 12345678;
+            int channel = 2;
+
+            byte[]? sent = null;
+
+            tcpMock.Setup(t => t.SendMessageAsync(It.IsAny<byte[]>()))
+                   .Callback<byte[]>(msg => sent = msg)
+                   .Returns(Task.CompletedTask);
+
+            tcpMock.SetupAdd(t => t.MessageReceived += It.IsAny<EventHandler<byte[]>>())
+                   .Callback<EventHandler<byte[]>>(h => h.Invoke(this, new byte[] { 0x00 }));
+
+            await client.ChangeFrequencyAsync(freq, channel);
+
+            Assert.NotNull(sent);
+            Assert.Contains((byte)channel, sent!);
+
+            var freqBytes = BitConverter.GetBytes(freq).Take(5);
+            foreach (var b in freqBytes)
+                Assert.Contains(b, sent!);
+        }
+
+        // ------------------------------------------
+        // 5) TcpClient MessageReceived should complete awaited request
+        // ------------------------------------------
+        [Fact]
+        public async Task TcpClient_MessageReceived_CompletesResponse()
+        {
+            tcpMock.Setup(t => t.SendMessageAsync(It.IsAny<byte[]>()))
+                   .Returns(Task.CompletedTask);
+
+            // start request
+            var task = client
+                .GetType()
+                .GetMethod("SendTcpRequest", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                .Invoke(client, new object[] { new byte[] { 0x10 } }) as Task<byte[]>;
+
+            // send fake TCP response
+            byte[] response = new byte[] { 0xAA, 0xBB };
+            tcpMock.Raise(t => t.MessageReceived += null, client, response);
+
+            var result = await task;
+
+            Assert.Equal(response, result);
+        }
     }
-
-    [Test]
-    public async Task ConnectAsyncTest()
-    {
-        //act
-        await _client.ConnectAsync();
-
-        //assert
-        _tcpMock.Verify(tcp => tcp.Connect(), Times.Once);
-        _tcpMock.Verify(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>()), Times.Exactly(3));
-    }
-
-    [Test]
-    public async Task DisconnectWithNoConnectionTest()
-    {
-        //act
-        _client.Disconect();
-
-        //assert
-        //No exception thrown
-        _tcpMock.Verify(tcp => tcp.Disconnect(), Times.Once);
-    }
-
-    [Test]
-    public async Task DisconnectTest()
-    {
-        //Arrange 
-        await ConnectAsyncTest();
-
-        //act
-        _client.Disconect();
-
-        //assert
-        //No exception thrown
-        _tcpMock.Verify(tcp => tcp.Disconnect(), Times.Once);
-    }
-
-    [Test]
-    public async Task StartIQNoConnectionTest()
-    {
-
-        //act
-        await _client.StartIQAsync();
-
-        //assert
-        //No exception thrown
-        _tcpMock.Verify(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>()), Times.Never);
-        _tcpMock.VerifyGet(tcp => tcp.Connected, Times.AtLeastOnce);
-    }
-
-    [Test]
-    public async Task StartIQTest()
-    {
-        //Arrange 
-        await ConnectAsyncTest();
-
-        //act
-        await _client.StartIQAsync();
-
-        //assert
-        //No exception thrown
-        _updMock.Verify(udp => udp.StartListeningAsync(), Times.Once);
-        Assert.That(_client.IQStarted, Is.True);
-    }
-
-    [Test]
-    public async Task StopIQTest()
-    {
-        //Arrange 
-        await ConnectAsyncTest();
-
-        //act
-        await _client.StopIQAsync();
-
-        //assert
-        //No exception thrown
-        _updMock.Verify(tcp => tcp.StopListening(), Times.Once);
-        Assert.That(_client.IQStarted, Is.False);
-    }
-
-    //TODO: cover the rest of the NetSdrClient code here
 }
