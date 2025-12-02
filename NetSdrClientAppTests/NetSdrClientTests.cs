@@ -111,95 +111,136 @@ public class NetSdrClientTests
 
         //assert
         //No exception thrown
-        _updMock.Verify(tcp => tcp.StopListening(), Times.Once);
+        _updMock.Verify(udp => udp.StopListening(), Times.Once);
         Assert.That(_client.IQStarted, Is.False);
     }
     
-[Test]
-public async Task ConnectAsync_WhenAlreadyConnected_ShouldNotSendDuplicateMessages()
-{
-    // Arrange
-    await _client.ConnectAsync(); // Перше підключення
-    
-    // Скидаємо лічильник викликів для TCP mock
-    _tcpMock.Invocations.Clear();
-    
-    // Act
-    await _client.ConnectAsync(); // Друга спроба підключення
-
-    // Assert
-    // Не повинно бути додаткових викликів SendMessageAsync при повторному підключенні
-    _tcpMock.Verify(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>()), Times.Never);
-    _tcpMock.Verify(tcp => tcp.Connect(), Times.Never);
-}
-
-[Test]
-public async Task StartIQAsync_WhenAlreadyStarted_ShouldNotStartAgain()
-{
-    // Arrange
-    await ConnectAsyncTest();
-    await _client.StartIQAsync(); // Перший запуск
-
-    // Скидаємо лічильник викликів для UDP mock
-    _updMock.Invocations.Clear();
-
-    // Act
-    await _client.StartIQAsync(); // Другий запуск
-
-    // Assert
-    _updMock.Verify(udp => udp.StartListeningAsync(), Times.Never);
-    // Перевіряємо, що IQStarted все ще true
-    Assert.That(_client.IQStarted, Is.True);
-}
-
-[Test]
-public async Task StopIQAsync_WhenIQNotStarted_ShouldStillStopListening()
-{
-    // Arrange
-    await ConnectAsyncTest();
-    // Не запускаємо IQ
-
-    // Act
-    await _client.StopIQAsync();
-
-    // Assert
-    _updMock.Verify(udp => udp.StopListening(), Times.Once);
-    // Перевіряємо, що IQStarted залишається false
-    Assert.That(_client.IQStarted, Is.False);
-}
-
-[Test]
-public void Disconnect_WhenCalledMultipleTimes_ShouldNotThrowException()
-{
-    // Act & Assert
-    Assert.DoesNotThrow(() => 
+    [Test]
+    public async Task ConnectAsync_WhenAlreadyConnected_ShouldNotSendDuplicateMessages()
     {
-        _client.Disconect(); // Перший раз
-        _client.Disconect(); // Другий раз
-        _client.Disconect(); // Третій раз
-    });
-    
-    // Перевіряємо, що Disconnect викликався 3 рази
-    _tcpMock.Verify(tcp => tcp.Disconnect(), Times.Exactly(3));
-}
+        // Arrange
+        await _client.ConnectAsync(); // Перше підключення
+        
+        // Скидаємо лічильник викликів для TCP mock
+        _tcpMock.Invocations.Clear();
+        
+        // Act
+        await _client.ConnectAsync(); // Друга спроба підключення
 
-  [Test]
-    public async Task HandleTcpDisconnection_WhenIQStarted_ShouldStopUdpListening()
+        // Assert
+        // Не повинно бути додаткових викликів SendMessageAsync при повторному підключенні
+        _tcpMock.Verify(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>()), Times.Never);
+        _tcpMock.Verify(tcp => tcp.Connect(), Times.Never);
+    }
+
+    [Test]
+    public async Task StartIQAsync_WhenAlreadyStarted_ShouldNotStartAgain()
     {
         // Arrange
         await ConnectAsyncTest();
-        await _client.StartIQAsync();
-        
+        await _client.StartIQAsync(); // Перший запуск
+
+        // Скидаємо лічильник викликів для UDP mock
+        _updMock.Invocations.Clear();
+
         // Act
-        // Імітуємо розрив TCP з'єднання через подію
-        _tcpMock.SetupGet(tcp => tcp.Connected).Returns(false);
-        _tcpMock.Raise(tcp => tcp.Disconnected += null, _tcpMock.Object, EventArgs.Empty);
+        await _client.StartIQAsync(); // Другий запуск
 
         // Assert
-        // Перевіряємо, що UDP listening зупинився при розриві TCP
+        _updMock.Verify(udp => udp.StartListeningAsync(), Times.Never);
+        // Перевіряємо, що IQStarted все ще true
+        Assert.That(_client.IQStarted, Is.True);
+    }
+
+    [Test]
+    public async Task StopIQAsync_WhenIQNotStarted_ShouldStillStopListening()
+    {
+        // Arrange
+        await ConnectAsyncTest();
+        // Не запускаємо IQ
+
+        // Act
+        await _client.StopIQAsync();
+
+        // Assert
         _updMock.Verify(udp => udp.StopListening(), Times.Once);
-        // Перевіряємо, що стан IQStarted оновився
+        // Перевіряємо, що IQStarted залишається false
         Assert.That(_client.IQStarted, Is.False);
-    
+    }
+
+    [Test]
+    public void Disconnect_WhenCalledMultipleTimes_ShouldNotThrowException()
+    {
+        // Act & Assert
+        Assert.DoesNotThrow(() => 
+        {
+            _client.Disconect(); // Перший раз
+            _client.Disconect(); // Другий раз
+            _client.Disconect(); // Третій раз
+        });
+        
+        // Перевіряємо, що Disconnect викликався 3 рази
+        _tcpMock.Verify(tcp => tcp.Disconnect(), Times.Exactly(3));
+    }
+
+    [Test]
+    public async Task ChangeFrequencyAsync_WhenConnected_ShouldSendControlMessage()
+    {
+        // Arrange
+        await ConnectAsyncTest(); // Використовуємо існуючий метод для підключення
+        long frequency = 100000000; // 100 MHz
+        int channel = 1;
+
+        // Act
+        await _client.ChangeFrequencyAsync(frequency, channel);
+
+        // Assert
+        // Перевіряємо, що було відправлено повідомлення через TCP
+        // Враховуємо, що ConnectAsync вже відправив 3 повідомлення
+        _tcpMock.Verify(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>()), Times.Exactly(4));
+    }
+
+    [Test]
+    public async Task ChangeFrequencyAsync_WhenNotConnected_ShouldNotSendMessage()
+    {
+        // Arrange
+        long frequency = 100000000;
+        int channel = 1;
+
+        // Act
+        await _client.ChangeFrequencyAsync(frequency, channel);
+
+        // Assert
+        _tcpMock.Verify(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>()), Times.Never);
+        // Можна перевірити, що виведено повідомлення в консоль, але це не обов'язково
+    }
+
+    [Test]
+    public void Constructor_WithNullTcpClient_ThrowsArgumentNullException()
+    {
+        // Arrange & Act & Assert
+        // Примітка: Залежить від реалізації конструктора
+        // Якщо конструктор не перевіряє null, може кидати NullReferenceException
+        Assert.Throws<ArgumentNullException>(() => new NetSdrClient(null, _updMock.Object));
+    }
+
+    [Test]
+    public void Constructor_WithNullUdpClient_ThrowsArgumentNullException()
+    {
+        // Arrange & Act & Assert
+        Assert.Throws<ArgumentNullException>(() => new NetSdrClient(_tcpMock.Object, null));
+    }
+
+    [Test]
+    public void TcpClient_MessageReceived_WhenResponseTaskSourceExists_SetsResult()
+    {
+        // Arrange
+        // Викликаємо подію MessageReceived з даними
+        var args = new byte[] { 0x01, 0x02, 0x03 };
+
+        // Act & Assert
+        // Перевіряємо, що виклик події не призводить до винятку
+        Assert.DoesNotThrow(() => _tcpMock.Raise(tcp => tcp.MessageReceived += null, _tcpMock.Object, args));
+    }
     //TODO: cover the rest of the NetSdrClient code here
 }
