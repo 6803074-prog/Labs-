@@ -77,6 +77,10 @@ jobs:
       #      /p:CoverletOutput=TestResults/coverage.xml `
       #      /p:CoverletOutputFormat=opencover
       #  shell: pwsh
+              # 4) Збірк
+      - name: Build solution
+        run: dotnet build --configuration Release --no-restore
+      # Або: dotnet build YourSolution.sln -c Release --no-restore
       # 3) END: SonarScanner
       - name: SonarScanner End
         run: dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
