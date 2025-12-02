@@ -1,8 +1,12 @@
 # Лабораторні з реінжинірингу (8×)
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=твій-юзер_NetSdrClientApp&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=твій-юзер_NetSdrClientApp)
-[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=твій-юзер_NetSdrClientApp&metric=bugs)](https://sonarcloud.io/summary/new_code?id=твій-юзер_NetSdrClientApp)
-[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=твій-юзер_NetSdrClientApp&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=твій-юзер_NetSdrClientApp)
-
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=6803074-prog_Labs-&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=6803074-prog_Labs-)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=6803074-prog_Labs-&metric=coverage)](https://sonarcloud.io/summary/new_code?id=6803074-prog_Labs-)
+[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=6803074-prog_Labs-&metric=bugs)](https://sonarcloud.io/summary/new_code?id=6803074-prog_Labs-)
+[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=6803074-prog_Labs-&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=6803074-prog_Labs-)
+[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=6803074-prog_Labs-&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=6803074-prog_Labs-)
+[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=6803074-prog_Labs-&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=6803074-prog_Labs-)
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=6803074-prog_Labs-&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=6803074-prog_Labs-)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=6803074-prog_Labs-&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=6803074-prog_Labs-)
 
 Цей репозиторій використовується для курсу **реінжиніринг ПЗ**. 
 Мета — провести комплексний реінжиніринг спадкового коду NetSdrClient, включаючи рефакторинг архітектури, покращення якості коду, впровадження сучасних практик розробки та автоматизацію процесів контролю якості через CI/CD пайплайни.
