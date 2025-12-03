@@ -92,8 +92,7 @@ jobs:
             /p:CollectCoverage=true `
             /p:CoverletOutput=TestResults/coverage.xml `
             /p:CoverletOutputFormat=opencover `
-            /p:Include="[*]*" `
-            /p:Exclude="[*Tests]*"
+
         shell: pwsh
 
       - name: Debug coverage report  # <- ЦЕЙ РЯДОК ПОТРІБНО ПОЧАТИ З ДЕФІСА
