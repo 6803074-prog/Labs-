@@ -36,6 +36,7 @@ public class NetSdrClientTests
         _client = new NetSdrClient(_tcpMock.Object, _updMock.Object);
     }
 
+    // ==================== ІСНУЮЧІ ТЕСТИ ====================
     [Test]
     public async Task ConnectAsyncTest()
     {
@@ -147,59 +148,30 @@ public class NetSdrClientTests
         _tcpMock.Verify(tcp => tcp.Disconnect(), Times.Exactly(3));
     }
 
-    [Test]
-    public async Task ChangeFrequencyAsync_WhenConnected_ShouldSendControlMessage()
-    {
-        // Arrange
-        await ConnectAsyncTest(); // Використовуємо існуючий метод для підключення
-        long frequency = 100000000; // 100 MHz
-        int channel = 1;
-
-        // Очищуємо лічильник викликів, щоб не враховувати повідомлення від ConnectAsync
-        _tcpMock.Invocations.Clear();
-
-        // Act
-        await _client.ChangeFrequencyAsync(frequency, channel);
-
-        // Assert
-        // Перевіряємо, що було відправлено повідомлення через TCP
-        _tcpMock.Verify(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>()), Times.Once);
-    }
-
-    [Test]
-    public async Task ChangeFrequencyAsync_WhenNotConnected_ShouldNotSendMessage()
-    {
-        // Arrange
-        long frequency = 100000000;
-        int channel = 1;
-
-        // Act
-        await _client.ChangeFrequencyAsync(frequency, channel);
-
-        // Assert
-        _tcpMock.Verify(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>()), Times.Never);
-        // Можна перевірити, що виведено повідомлення в консоль, але це не обов'язково
-    }
-
-    // ==================== 4 ВИПРАВЛЕНИХ ТЕСТІВ ====================
+    // ==================== 5 НОВИХ ТЕСТІВ (З УНІКАЛЬНИМИ НАЗВАМИ) ====================
     
+    // Тест 1: Відправка команди зміни частоти (якщо вже є, перейменував)
     [Test]
-    public async Task ChangeFrequencyAsync_WhenConnected_ShouldSendControlMessage()
+    public async Task SendFrequencyChangeCommand_WhenConnected_ShouldCallTcp()
     {
         // Arrange
         await ConnectAsyncTest();
         long frequency = 100000000;
         int channel = 1;
 
+        // Очищуємо лічильник, щоб рахувати тільки нові виклики
+        _tcpMock.Invocations.Clear();
+
         // Act
         await _client.ChangeFrequencyAsync(frequency, channel);
 
         // Assert
-        _tcpMock.Verify(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>()), Times.Exactly(4)); // 3 від ConnectAsync + 1 від ChangeFrequency
+        _tcpMock.Verify(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>()), Times.Once);
     }
 
+    // Тест 2: Зміна частоти без підключення
     [Test]
-    public async Task ChangeFrequencyAsync_WhenNotConnected_ShouldNotSendMessage()
+    public async Task SendFrequencyChange_WithoutConnection_ShouldNotCallTcp()
     {
         // Arrange
         long frequency = 100000000;
@@ -212,22 +184,39 @@ public class NetSdrClientTests
         _tcpMock.Verify(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>()), Times.Never);
     }
 
+    // Тест 3: Конструктор з null TCP клієнтом
     [Test]
-    public void Constructor_WithNullTcpClient_ThrowsNullReferenceException()
+    public void CreateClient_WithNullTcp_ShouldThrowNullRefException()
     {
         // Arrange & Act & Assert
-        var ex = Assert.Throws<NullReferenceException>(() => new NetSdrClient(null, _updMock.Object));
-        Assert.That(ex, Is.Not.Null);
+        Assert.Throws<NullReferenceException>(() => new NetSdrClient(null, _updMock.Object));
     }
 
-   [Test]
-    public void ClientCreation_WithValidParameters_ShouldNotThrow()
+    // Тест 4: Конструктор з null UDP клієнтом
+    [Test]
+    public void CreateClient_WithNullUdp_ShouldThrowNullRefException()
+    {
+        // Arrange & Act & Assert
+        Assert.Throws<NullReferenceException>(() => new NetSdrClient(_tcpMock.Object, null));
+    }
+
+    // Тест 5: Перевірка початкового стану IQStarted
+    [Test]
+    public void InitialState_IQStarted_ShouldBeFalse()
+    {
+        // Act & Assert
+        Assert.That(_client.IQStarted, Is.False);
+    }
+
+    // Тест 6 (додатковий): Перевірка події MessageReceived
+    [Test]
+    public void RaiseMessageReceivedEvent_ShouldNotThrow()
     {
         // Arrange
-        var tcpMock = new Mock<ITcpClient>();
-        var udpMock = new Mock<IUdpClient>();
-        
+        var testData = new byte[] { 0x01, 0x02, 0x03 };
+
         // Act & Assert
-        Assert.DoesNotThrow(() => new NetSdrClient(tcpMock.Object, udpMock.Object));
+        Assert.DoesNotThrow(() => 
+            _tcpMock.Raise(tcp => tcp.MessageReceived += null, _tcpMock.Object, testData));
     }
 }
