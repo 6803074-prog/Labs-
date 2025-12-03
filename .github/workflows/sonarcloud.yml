@@ -82,11 +82,9 @@ jobs:
       /p:CollectCoverage=true `
       /p:CoverletOutput=TestResults/coverage.xml `
       /p:CoverletOutputFormat=opencover `
-      /p:Include="[*]*" `
-      /p:Exclude="[*Tests]*"
   shell: pwsh
 
-       - name: Debug coverage report
+      - name: Debug coverage report
         run: |
           dotnet test NetSdrClientAppTests/NetSdrClientAppTests.csproj -c Release --no-build `
             /p:CollectCoverage=true `
@@ -95,42 +93,7 @@ jobs:
 
         shell: pwsh
 
-      - name: Debug coverage report  # <- ЦЕЙ РЯДОК ПОТРІБНО ПОЧАТИ З ДЕФІСА
-        run: |
-          # Перевірка наявності файлу
-          if (Test-Path "NetSdrClientAppTests/TestResults/coverage.xml") {
-            Write-Host "✅ Coverage file exists"
-            
-            # Перевірка розміру файлу
-            $fileSize = (Get-Item "NetSdrClientAppTests/TestResults/coverage.xml").Length
-            Write-Host "File size: $fileSize bytes"
-            
-            # Перевірка, чи містить файл дані про основний проект NetSdrClient
-            $containsNetSdrClient = Select-String -Path "NetSdrClientAppTests/TestResults/coverage.xml" -Pattern "NetSdrClientApp" -SimpleMatch
-            if ($containsNetSdrClient) {
-              Write-Host "✅ Coverage file contains NetSdrClientApp"
-              Write-Host "First 3 matches:"
-              $containsNetSdrClient | Select-Object -First 3
-            } else {
-              Write-Host "❌ Coverage file does NOT contain NetSdrClientApp"
-            }
-            
-            # Перевірка, що саме покривається
-            Write-Host "=== Checking what's included in coverage ==="
-            Select-String -Path "NetSdrClientAppTests/TestResults/coverage.xml" -Pattern "class name=" | Select-Object -First 5
-            
-            # Перевірка, чи є там тестові файли
-            $containsTestFiles = Select-String -Path "NetSdrClientAppTests/TestResults/coverage.xml" -Pattern "Test" -SimpleMatch
-            if ($containsTestFiles) {
-              Write-Host "⚠️ Coverage file contains test files (might be analyzing tests instead of main code)"
-            }
-            
-          } else {
-            Write-Host "❌ Coverage file NOT found!"
-            Write-Host "Listing TestResults directory:"
-            Get-ChildItem -Path "NetSdrClientAppTests" -Recurse -ErrorAction SilentlyContinue
-          }
-        shell: pwsh
+    
   
       # 3) END: SonarScanner
       - name: SonarScanner End
