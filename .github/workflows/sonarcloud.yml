@@ -70,6 +70,8 @@ jobs:
         run: dotnet restore NetSdrClient.sln
       - name: Build
         run: dotnet build NetSdrClient.sln -c Release --no-restore
+      - name: Run unit tests
+        run: dotnet test --verbosity normal
       #- name: Tests with coverage (OpenCover)
       #  run: |
       #    dotnet test NetSdrClientAppTests/NetSdrClientAppTests.csproj -c Release --no-build `
