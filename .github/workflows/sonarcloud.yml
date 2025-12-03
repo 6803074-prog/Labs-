@@ -59,10 +59,11 @@ jobs:
           /k:"6803074-prog_Labs-" `
           /o:"6803074-prog" `
           /d:sonar.token="${{ secrets.SONAR_TOKEN }}" `
-          /d:sonar.cs.opencover.reportsPaths="**/coverage.xml" `
-          /d:sonar.cpd.cs.minimumTokens=40 `
-          /d:sonar.cpd.cs.minimumLines=5 `
-          /d:sonar.exclusions=**/bin/**,**/obj/**,**/sonarcloud.yml `
+          /d:sonar.sources="NetSdrClientApp" `           
+          /d:sonar.tests="NetSdrClientAppTests" `        
+          /d:sonar.cs.opencover.reportsPaths="**/TestResults/coverage.xml" `
+          /d:sonar.exclusions="**/bin/**,**/obj/**,**/.github/**,**/*Tests.cs" `
+          /d:sonar.coverage.exclusions="**/*Tests.cs" `
           /d:sonar.qualitygate.wait=true
         shell: pwsh
       # 2) BUILD & TEST
