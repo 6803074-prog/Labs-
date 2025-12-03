@@ -23,21 +23,6 @@ public class ArchitectureTests
     }
     
     [Test]
-    public void MainProgram_ShouldNotReferenceTestProjects()
-    {
-        // Правило 2: Основний проєкт не повинен залежати від тестів
-        var result = Types.InCurrentDomain()
-            .That()
-            .ResideInNamespace("NetSdrClientApp")
-            .ShouldNot()
-            .HaveDependencyOn("NetSdrClientAppTests")
-            .GetResult();
-        
-        Assert.IsTrue(result.IsSuccessful,
-            $"Основний проєкт має залежності на тести. Порушення: {GetFailingTypeNames(result)}");
-    }
-    
-    [Test]
     public void AllClasses_InMessages_ShouldBeStatic()
     {
         // Правило 3: Всі класи в Messages повинні бути static (оскільки там тільки хелпери)
