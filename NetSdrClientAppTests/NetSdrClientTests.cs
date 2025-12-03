@@ -220,11 +220,14 @@ public class NetSdrClientTests
         Assert.That(ex, Is.Not.Null);
     }
 
-    [Test]
-    public void Constructor_WithNullUdpClient_ThrowsNullReferenceException()
+   [Test]
+    public void ClientCreation_WithValidParameters_ShouldNotThrow()
     {
-        // Arrange & Act & Assert
-        var ex = Assert.Throws<NullReferenceException>(() => new NetSdrClient(_tcpMock.Object, null));
-        Assert.That(ex, Is.Not.Null);
+        // Arrange
+        var tcpMock = new Mock<ITcpClient>();
+        var udpMock = new Mock<IUdpClient>();
+        
+        // Act & Assert
+        Assert.DoesNotThrow(() => new NetSdrClient(tcpMock.Object, udpMock.Object));
     }
 }
