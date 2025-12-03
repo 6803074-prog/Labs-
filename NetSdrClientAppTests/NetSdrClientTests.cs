@@ -226,5 +226,5 @@ public class NetSdrClientTests
         // Arrange & Act & Assert
         var ex = Assert.Throws<NullReferenceException>(() => new NetSdrClient(_tcpMock.Object, null));
         Assert.That(ex, Is.Not.Null);
-    //TODO: cover the rest of the NetSdrClient code here
+    }
 }
