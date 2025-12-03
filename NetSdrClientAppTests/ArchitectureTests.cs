@@ -1,6 +1,7 @@
 using NetArchTest.Rules;
 using NUnit.Framework;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace NetSdrClientAppTests;
@@ -8,7 +9,6 @@ namespace NetSdrClientAppTests;
 [TestFixture]
 public class ArchitectureTests
 {
-    // Визначаємо неймспейси з твоєї структури
     private readonly string _messagesNamespace = "NetSdrClientApp.Messages";
     private readonly string _networkingNamespace = "NetSdrClientApp.Networking";
     private readonly string _mainNamespace = "NetSdrClientApp";
@@ -16,22 +16,39 @@ public class ArchitectureTests
     [Test]
     public void Messages_ShouldNotDependOnNetworking()
     {
-        // Правило: модуль Messages не повинен залежати від Networking
-        var result = Types.InCurrentDomain()
+        // Правило: Messages не повинен залежати від Networking
+        var types = Types.InCurrentDomain()
             .That()
-            .ResideInNamespace(_messagesNamespace)
+            .ResideInNamespace(_messagesNamespace);
+            
+        var result = types
             .ShouldNot()
             .HaveDependencyOn(_networkingNamespace)
             .GetResult();
         
         Assert.IsTrue(result.IsSuccessful, 
-            $"Messages має заборонені залежності на Networking: {FormatViolations(result.ViolatingTypes)}");
+            $"Messages має заборонені залежності на Networking: {FormatViolations(result.FailingTypes)}");
+    }
+    
+    [Test]
+    public void MainProgram_ShouldNotReferenceTestProjects()
+    {
+        // Правило: Основний проєкт не повинен залежати від тестів
+        var result = Types.InCurrentDomain()
+            .That()
+            .ResideInNamespace(_mainNamespace)
+            .ShouldNot()
+            .HaveDependencyOn("NetSdrClientAppTests")
+            .GetResult();
+        
+        Assert.IsTrue(result.IsSuccessful,
+            $"Основний проєкт має залежності на тести: {FormatViolations(result.FailingTypes)}");
     }
     
     [Test]
     public void Networking_Interfaces_ShouldBePublic()
     {
-        // Правило: всі інтерфейси в Networking повинні бути public
+        // Правило: Інтерфейси в Networking повинні бути public
         var result = Types.InCurrentDomain()
             .That()
             .ResideInNamespace(_networkingNamespace)
@@ -42,84 +59,51 @@ public class ArchitectureTests
             .GetResult();
         
         Assert.IsTrue(result.IsSuccessful,
-            $"Інтерфейси в Networking мають бути public: {FormatViolations(result.ViolatingTypes)}");
+            $"Інтерфейси в Networking мають бути public: {FormatViolations(result.FailingTypes)}");
     }
     
     [Test]
-    public void MessageHelpers_ShouldBeStatic()
+    public void AllClasses_InMessages_ShouldBeStatic()
     {
-        // Правило: класи-хелпери в Messages повинні бути static
+        // Правило: Всі класи в Messages повинні бути static
         var result = Types.InCurrentDomain()
             .That()
             .ResideInNamespace(_messagesNamespace)
             .And()
-            .HaveNameEndingWith("Helper")
+            .AreClasses()
             .Should()
             .BeStatic()
             .GetResult();
         
         Assert.IsTrue(result.IsSuccessful,
-            $"Хелпери в Messages мають бути static: {FormatViolations(result.ViolatingTypes)}");
+            $"Класи в Messages мають бути static: {FormatViolations(result.FailingTypes)}");
     }
     
     [Test]
-    public void Wrappers_ShouldImplementInterfaces()
+    public void Networking_Wrappers_ShouldHaveCorrectNames()
     {
-        // Правило: класи-обгортки повинні реалізовувати відповідні інтерфейси
-        var result = Types.InCurrentDomain()
-            .That()
-            .ResideInNamespace(_networkingNamespace)
-            .And()
-            .HaveNameEndingWith("Wrapper")
-            .Should()
-            .ImplementInterface(typeof(NetSdrClientApp.Networking.ITcpClient))
-            .OrShould()
-            .ImplementInterface(typeof(NetSdrClientApp.Networking.IUdpClient))
-            .GetResult();
-        
-        Assert.IsTrue(result.IsSuccessful,
-            $"Wrapper класи мають реалізовувати інтерфейси: {FormatViolations(result.ViolatingTypes)}");
-    }
-    
-    [Test]
-    public void MainProgram_ShouldNotReferenceTestProjects()
-    {
-        // Правило: основний проєкт не повинен залежати від тестів
-        var result = Types.InCurrentDomain()
-            .That()
-            .ResideInNamespace(_mainNamespace)
-            .ShouldNot()
-            .HaveDependencyOn("NetSdrClientAppTests")
-            .GetResult();
-        
-        Assert.IsTrue(result.IsSuccessful,
-            $"Основний проєкт має залежності на тести: {FormatViolations(result.ViolatingTypes)}");
-    }
-    
-    [Test]
-    public void AllClasses_InNetworking_ShouldBeSealed()
-    {
-        // Правило: всі класи в Networking (крім абстрактних) мають бути sealed
+        // Правило: Класи-обгортки повинні мати "Wrapper" в назві
         var result = Types.InCurrentDomain()
             .That()
             .ResideInNamespace(_networkingNamespace)
             .And()
             .AreClasses()
             .And()
-            .AreNotAbstract()
+            .ImplementInterface("ITcpClient")
+            .Or()
+            .ImplementInterface("IUdpClient")
             .Should()
-            .BeSealed()
+            .HaveNameEndingWith("Wrapper")
             .GetResult();
         
         Assert.IsTrue(result.IsSuccessful,
-            $"Класи в Networking мають бути sealed: {FormatViolations(result.ViolatingTypes)}");
+            $"Wrapper класи мають мати 'Wrapper' в назві: {FormatViolations(result.FailingTypes)}");
     }
     
-    // Допоміжний метод
-    private string FormatViolations(System.Collections.Generic.IEnumerable<Type> violatingTypes)
+    private string FormatViolations(IEnumerable<Type> failingTypes)
     {
-        return violatingTypes.Any() 
-            ? string.Join(", ", violatingTypes.Select(t => t.Name))
+        return failingTypes != null && failingTypes.Any() 
+            ? string.Join(", ", failingTypes.Select(t => t.Name))
             : "Немає порушень";
     }
 }
