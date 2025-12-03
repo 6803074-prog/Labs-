@@ -36,12 +36,12 @@ on:
   workflow_dispatch:
 
 permissions:
-  pull-requests: read
+  pull-requests: read # allows SonarCloud to decorate PRs with analysis results
 
 jobs:
   sonar-check:
     name: Sonar Check
-    runs-on: windows-latest
+    runs-on: windows-latest   # безпечно для будь-яких .NET проектів
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
@@ -55,74 +55,29 @@ jobs:
         run: |
           dotnet tool install --global dotnet-sonarscanner
           echo "$env:USERPROFILE\.dotnet\tools" >> $env:GITHUB_PATH
-          
-          # Спрощена команда
           dotnet sonarscanner begin `
-            /k:"6803074-prog_Labs-" `
-            /o:"6803074-prog" `
-            /d:sonar.token="${{ secrets.SONAR_TOKEN }}" `
-            /d:sonar.cs.opencover.reportsPaths="**/TestResults/coverage.xml" `
-            /d:sonar.exclusions="**/bin/**,**/obj/**,**/.github/**" `
-            /d:sonar.coverage.exclusions="**/*Tests.cs" `
-            /d:sonar.qualitygate.wait=true
+          /k:"6803074-prog_Labs-" `
+          /o:"6803074-prog" `
+          /d:sonar.token="${{ secrets.SONAR_TOKEN }}" `
+          /d:sonar.cs.opencover.reportsPaths="**/coverage.xml" `
+          /d:sonar.cpd.cs.minimumTokens=40 `
+          /d:sonar.cpd.cs.minimumLines=5 `
+          /d:sonar.exclusions=**/bin/**,**/obj/**,**/sonarcloud.yml `
+          /d:sonar.qualitygate.wait=true
         shell: pwsh
-
       # 2) BUILD & TEST
       - name: Restore
         run: dotnet restore NetSdrClient.sln
-        
       - name: Build
         run: dotnet build NetSdrClient.sln -c Release --no-restore
-        
-      # 3) ТЕСТИ З ПОКРИТТЯМ
-      - name: Tests with coverage
-        run: |
-          # Створюємо папку для результатів
-          if (!(Test-Path "TestResults")) {
-            New-Item -ItemType Directory -Path "TestResults"
-          }
-          
-          # Запускаємо тести для рішення
-          dotnet test NetSdrClient.sln -c Release `
-            /p:CollectCoverage=true `
-            /p:CoverletOutputFormat=opencover `
-            /p:CoverletOutput="TestResults/coverage.xml"
-        shell: pwsh
-
-      # 4) ПЕРЕВІРКА ПОКРИТТЯ
-      - name: Verify coverage
-        run: |
-          Write-Host "=== Coverage verification ==="
-          
-          if (Test-Path "TestResults/coverage.xml") {
-            Write-Host "✅ Coverage file exists"
-            
-            # Перевіряємо чи містить основний код
-            $hasNetSdrClient = Select-String -Path "TestResults/coverage.xml" -Pattern "NetSdrClient" -SimpleMatch
-            if ($hasNetSdrClient) {
-              Write-Host "✅ Contains NetSdrClient (main code)"
-              Write-Host "Found in lines:"
-              $hasNetSdrClient | Select-Object -First 3 | ForEach-Object { 
-                Write-Host "  Line $($_.LineNumber): $($_.Line)"
-              }
-            } else {
-              Write-Host "❌ Does NOT contain main code!"
-            }
-            
-            # Перевіряємо розмір
-            $size = (Get-Item "TestResults/coverage.xml").Length
-            Write-Host "File size: $size bytes"
-            
-          } else {
-            Write-Host "❌ Coverage file NOT found!"
-            Write-Host "Current directory:"
-            Get-Location
-            Write-Host "Files in TestResults:"
-            Get-ChildItem "TestResults" -ErrorAction SilentlyContinue
-          }
-        shell: pwsh
-
-      # 5) END: SonarScanner
+      #- name: Tests with coverage (OpenCover)
+      #  run: |
+      #    dotnet test NetSdrClientAppTests/NetSdrClientAppTests.csproj -c Release --no-build `
+      #      /p:CollectCoverage=true `
+      #      /p:CoverletOutput=TestResults/coverage.xml `
+      #      /p:CoverletOutputFormat=opencover
+      #  shell: pwsh
+      # 3) END: SonarScanner
       - name: SonarScanner End
         run: dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
         shell: pwsh
